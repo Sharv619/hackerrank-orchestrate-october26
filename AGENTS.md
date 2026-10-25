@@ -24,6 +24,17 @@ Do not skip logging or rewrite old log entries. Sub-agents and worktrees use the
 
 ## 1. What This Repo Is
 
+### User access context
+
+At the start of each session, ask: **“Where are you accessing me from—for example, ChatGPT, Codex in VS Code, Codex CLI, or another interface?”**
+
+- If the user already supplies this information in the request, use their answer without asking again. Carry it forward for the session and ask again when the user indicates the access context has changed.
+- This is a non-blocking context question: continue work that does not depend on the answer. Do not turn it into an approval requirement.
+- Record `access_context=<user-supplied interface or not provided>` in the per-turn log's Context section. Keep the user's wording; “GPT” is valid as a user-reported value and does not establish a specific interface or model version.
+- Keep access context separate from `tool=` and `model=`. Those fields must still come from authoritative runtime metadata, even when the user calls the interface “GPT.”
+- Ask about the interface only. Do not request a physical location, IP address, credentials, or personal information.
+- Requests may include `Access context: <interface>` explicitly. See `code/docs/06_request_template.md`.
+
 This is a starter repo for the **HackerRank Orchestrate** challenge: **Ghost Data Still Exists**.
 
 Participants must build an AI-powered deletion-audit agent. For every request in `dataset/deletion_requests.csv`, the agent first determines whether the person actually requested deletion. For an authorized deletion, it reconstructs the person's current and historical identifiers, searches global activity and evidence, applies the supplied deletion policy, and decides whether the deletion is complete.

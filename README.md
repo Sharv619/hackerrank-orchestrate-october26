@@ -23,7 +23,16 @@ cd hackerrank-orchestrate-october26
 
 Start your AI coding tool from the **repository root** so it automatically reads [`AGENTS.md`](./AGENTS.md) and logs your session turns to `log.txt` in the root directory.
 
-Build your solution in `code/main.py`, or use another language and document its setup and run command clearly in your README.
+The solution is a deterministic Python auditor. It resolves temporal identities, retrieves exact ownership-linked evidence, applies the supplied policy, and builds canonical plans. Runtime LLM calls: zero.
+
+Requirements: Python 3.10+, Pillow, Poppler (`pdftotext`), and Tesseract 5 with English language data. The two executables must be on `PATH`. On Ubuntu/Debian:
+
+```bash
+sudo apt-get install tesseract-ocr tesseract-ocr-eng poppler-utils
+python3 -m pip install -r code/requirements.txt
+```
+
+On macOS, install `tesseract` and `poppler` with Homebrew. On Windows, install their native distributions and add their executable directories to `PATH`, then install the Python requirements. OCR extracts screen state only; explicit catalog links establish screenshot ownership. Missing dependencies or ungrounded cases stop generation without replacing the existing output.
 
 Your solution must:
 
@@ -31,7 +40,7 @@ Your solution must:
 - Generate one prediction row for every request in `dataset/deletion_requests.csv`
 - Write the final predictions to `output.csv` in the repository root
 
-Run the starter Python entry point with:
+Generate and validate the final predictions from the repository root:
 
 ```bash
 python3 code/main.py
@@ -89,14 +98,14 @@ The final file must contain 518 data rows sorted by `case_id` (plus the header r
 Your `code.zip` must include:
 
 ```text
-code/evaluation/evaluation_report.md
-code/evaluation/usage_report.md
+evaluation/evaluation_report.md
+evaluation/usage_report.md
 ```
 
 - `evaluation_report.md` must cover case, row, field, and sequence accuracy, at least three additional evaluation cases created by you, failures found, and improvements made.
 - `usage_report.md` must cover the final full-dataset run, including model providers and names, model calls, input and output tokens, total and average tokens per request, and estimated total and per-request cost. Include per-model and overall totals when using multiple models.
 
-**Important:** Place `evaluation_report.md` and `usage_report.md` inside `code/evaluation/` (matching `code/evaluation/main.py` in this starter layout), write your complete evaluation metrics, custom evaluation test cases, and token/cost breakdowns directly inside those Markdown files, and keep prompts in source code or Markdown files. Automated code evaluation ignores raw data files (`.csv`, `.tsv`, `.json`, `.jsonl`, `.sql`, `.log`), so content stored only in those formats will not be visible to the code judge or AI interviewer.
+**Important:** Maintain the source reports inside `code/evaluation/`. The packaging script also places identical copies at the required archive-root paths `evaluation/evaluation_report.md` and `evaluation/usage_report.md`. Do not rely on the source-directory paths alone. Always write your complete evaluation metrics, custom evaluation test cases, and token/cost breakdowns directly inside those Markdown files, and keep prompts in source code or Markdown files. Automated code evaluation ignores raw data files (`.csv`, `.tsv`, `.json`, `.jsonl`, `.sql`, `.log`), so content stored only in those formats will not be visible to the code judge or AI interviewer.
 
 ---
 
@@ -126,24 +135,26 @@ This repository includes [`AGENTS.md`](./AGENTS.md), which instructs compatible 
 
 You may use any programming language, model, framework, or retrieval approach. Include clear setup and execution instructions in `README.md` inside `code.zip`.
 
-To package `code.zip` from the repository root without bundling the dataset:
-
-**macOS / Linux:**
+Run the checks and public evaluator from the repository root:
 
 ```bash
-zip -r code.zip README.md code -x "*/__pycache__/*" "*/.venv/*" "*/venv/*" "*/node_modules/*" "*/.git/*" "*/.DS_Store"
+python3 -m pip install pytest
+python3 -m pytest -q
+python3 code/validate.py
+python3 code/evaluation/main.py
+python3 code/package.py
 ```
 
-**Windows (PowerShell):**
+The sample evaluator (`code/evaluation/main.py`, or `code/main.py --samples`) counts unresolved evidence cases as failures across all 32 samples. It writes diagnostics and metrics under `.run/`; it does not export unsupported statuses into a prediction CSV.
 
-```powershell
-Compress-Archive -Path README.md, code -DestinationPath code.zip -Force
-```
+Tests also work from `code/` with `python3 -m pytest -q`. Production defaults resolve relative to the source file, independently of the current working directory. Explicit `--dataset` and `--output` arguments follow normal shell-relative path semantics. `--structured-only` is a diagnostic mode and cannot produce a valid full submission when screenshot-only evidence is needed.
+
+The packaging script replaces the archive from the current sources, excludes caches, datasets, generated predictions, transcripts and nested archives, and checks required members.
 
 When packaging `code.zip`:
 
-- Keep your evaluation reports in `code/evaluation/` so they are bundled automatically with `code` (or add `evaluation` to the archive command above if you placed them in a top-level `evaluation/` directory).
-- Do **not** include `dataset/`, virtual environments (`.venv`, `venv`, `node_modules`), or build caches (`__pycache__`). On Windows, keep `.venv` at the repository root (outside `code/`) and remove any `code/__pycache__` folders before running `Compress-Archive`.
+- Keep source reports in `code/evaluation/`; `python3 code/package.py` adds identical copies under archive-root `evaluation/`, as required by `problem_statement.md`.
+- Do **not** include `dataset/`, virtual environments (`.venv`, `venv`, `node_modules`), or build caches (`__pycache__`). The packaging script applies these exclusions on all platforms.
 - Do **not** include nested archives (`.zip`, `.tar`, `.gz`, `.tgz`, `.7z`, `.rar`) inside `code.zip` — submissions containing nested archive files will be rejected.
 
 Before submitting, confirm that:
@@ -152,6 +163,6 @@ Before submitting, confirm that:
 - every `steps_json` value is a valid JSON array with consecutive step numbers starting at `1`;
 - findings cite valid evidence IDs, and `COMPLETE` verification steps cite evidence proving the current state;
 - proposed remediation and future verification steps use an empty `evidence_id` (`""`);
-- `code.zip` includes your runnable code, `README.md`, `code/evaluation/evaluation_report.md`, and `code/evaluation/usage_report.md`;
+- `code.zip` includes your runnable code, `README.md`, and the exact required archive paths `evaluation/evaluation_report.md` and `evaluation/usage_report.md`;
 - `log.txt` follows the `AGENTS.md` turn format and is uploaded to the `chat_transcript` slot; and
 - no API keys, credentials, real personal data, or sensitive configuration values are included.
